@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TIMER by Flo</title>
+
+  <!-- PWA / iPhone -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#f4f4f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="TIMER">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Bandeau fixe : timer en cours -->
+  <header id="banner" class="banner" hidden>
+    <div class="banner-row">
+      <span class="dot" id="banner-dot"></span>
+      <div class="banner-label">
+        <div class="banner-name" id="banner-name"></div>
+        <div class="banner-time mono" data-dur="banner">00:00:00</div>
+      </div>
+      <button class="btn-stop" id="banner-stop" aria-label="Arrêter">■ Stop</button>
+    </div>
+    <input id="banner-note" class="banner-note" type="text" placeholder="Note (facultatif)…" autocomplete="off">
+  </header>
+
+  <main>
+    <!-- Onglet Timers -->
+    <section id="tab-timers" class="tab">
+      <div class="page-head">
+        <h1>Timers</h1>
+        <div class="segmented" id="timers-period">
+          <button data-p="today" class="on">Aujourd'hui</button>
+          <button data-p="week">Semaine</button>
+          <button data-p="month">Mois</button>
+        </div>
+      </div>
+      <div id="cards"></div>
+      <button class="btn-big" id="add-activity">+ Activité</button>
+    </section>
+
+    <!-- Onglet Rapports -->
+    <section id="tab-reports" class="tab" hidden>
+      <div class="page-head"><h1>Rapports</h1></div>
+
+      <div class="panel filters">
+        <label>Période
+          <select id="f-period">
+            <option value="today">Aujourd'hui</option>
+            <option value="yesterday">Hier</option>
+            <option value="week">Cette semaine</option>
+            <option value="lastweek">Semaine dernière</option>
+            <option value="month" selected>Ce mois</option>
+            <option value="lastmonth">Mois dernier</option>
+            <option value="year">Cette année</option>
+            <option value="custom">Personnalisée</option>
+          </select>
+        </label>
+        <div class="row2" id="f-custom" hidden>
+          <label>Du <input type="date" id="f-from"></label>
+          <label>Au <input type="date" id="f-to"></label>
+        </div>
+        <div class="row2">
+          <label>Activité <select id="f-activity"></select></label>
+          <label>Sous-timer <select id="f-sub"></select></label>
+        </div>
+        <div class="period-label" id="f-label"></div>
+      </div>
+
+      <div class="panel">
+        <div class="total-big"><span>Total</span><strong id="r-total">0 min</strong></div>
+        <table class="summary" id="r-table"></table>
+      </div>
+
+      <div class="panel">
+        <h2 id="r-donut-title">Répartition</h2>
+        <div class="chart-box"><canvas id="r-donut"></canvas></div>
+        <h2 id="r-bars-title">Temps par jour</h2>
+        <div class="chart-box tall"><canvas id="r-bars"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Export</h2>
+        <div class="btn-col">
+          <button class="btn" id="exp-recap">📄 Récap facturation (CSV)</button>
+          <button class="btn" id="exp-sessions">📄 Détail des sessions (CSV)</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="h2-row">
+          <h2>Sessions</h2>
+          <button class="btn small" id="add-manual">+ Ajouter du temps</button>
+        </div>
+        <div id="r-sessions"></div>
+      </div>
+    </section>
+
+    <!-- Onglet Réglages -->
+    <section id="tab-settings" class="tab" hidden>
+      <div class="page-head"><h1>Réglages</h1></div>
+      <div class="panel">
+        <h2>Activités et sous-timers</h2>
+        <div id="s-list"></div>
+        <button class="btn" id="s-add-activity">+ Activité</button>
+      </div>
+      <div class="panel">
+        <h2>Archivés</h2>
+        <div id="s-archived"></div>
+      </div>
+      <div class="panel">
+        <h2>Sauvegarde</h2>
+        <p class="hint">Les données restent sur cet iPhone. Exporte régulièrement une sauvegarde JSON.</p>
+        <div class="btn-col">
+          <button class="btn" id="s-export">💾 Exporter la sauvegarde (JSON)</button>
+          <button class="btn" id="s-import">📥 Importer une sauvegarde (JSON)</button>
+          <input type="file" id="s-import-file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+      <p class="hint center">TIMER by Flo · v1</p>
+    </section>
+  </main>
+
+  <!-- Barre d'onglets -->
+  <nav class="tabbar">
+    <button data-tab="timers" class="on"><span>⏱</span>Timers</button>
+    <button data-tab="reports"><span>📊</span>Rapports</button>
+    <button data-tab="settings"><span>⚙️</span>Réglages</button>
+  </nav>
+
+  <!-- Fenêtre modale générique (formulaires) -->
+  <dialog id="modal">
+    <form method="dialog" id="modal-form">
+      <h2 id="modal-title"></h2>
+      <div id="modal-body"></div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </form>
+  </dialog>
+
+  <script src="vendor/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
