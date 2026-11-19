@@ -5,7 +5,7 @@
    (la nouvelle version est donc visible à l'ouverture suivante).
    Pense à changer CACHE si tu modifies la liste des fichiers. */
 
-const CACHE = 'timerflo-v2';
+const CACHE = 'timerflo-v3';
 const FILES = [
   './',
   './index.html',
@@ -19,7 +19,10 @@ const FILES = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' = on ignore le cache HTTP du navigateur pour être sûr d'avoir la dernière version
+  event.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -38,7 +41,8 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(req, { ignoreSearch: true });
-      const network = fetch(req)
+      // 'no-cache' : on revérifie toujours auprès du serveur (sinon une version vieille de 10 min peut revenir)
+      const network = fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then((res) => { if (res.ok) cache.put(req, res.clone()); return res; })
         .catch(() => null);
       if (cached) { event.waitUntil(network); return cached; }
