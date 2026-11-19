@@ -47,6 +47,33 @@
       <button class="btn-big" id="add-activity">+ Activité</button>
     </section>
 
+    <!-- Onglet Calendrier -->
+    <section id="tab-calendar" class="tab" hidden>
+      <div class="page-head"><h1>Calendrier</h1></div>
+      <div class="panel cal">
+        <div class="cal-nav">
+          <button class="icon-btn" id="cal-prev" aria-label="Mois précédent">‹</button>
+          <strong id="cal-title"></strong>
+          <button class="icon-btn" id="cal-next" aria-label="Mois suivant">›</button>
+        </div>
+        <div class="cal-week"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <button class="btn small" id="cal-today">Aujourd'hui</button>
+      </div>
+      <div class="panel">
+        <h2 id="cal-day-title"></h2>
+        <div class="total-big"><span>Total du jour</span><strong id="cal-total" class="mono"></strong></div>
+        <table class="summary" id="cal-table"></table>
+      </div>
+      <div class="panel">
+        <div class="h2-row">
+          <h2>Sessions du jour</h2>
+          <button class="btn small" id="cal-add">+ Ajouter du temps</button>
+        </div>
+        <div id="cal-sessions"></div>
+      </div>
+    </section>
+
     <!-- Onglet Rapports -->
     <section id="tab-reports" class="tab" hidden>
       <div class="page-head"><h1>Rapports</h1></div>
@@ -132,6 +159,7 @@
   <!-- Barre d'onglets -->
   <nav class="tabbar">
     <button data-tab="timers" class="on"><span>⏱</span>Timers</button>
+    <button data-tab="calendar"><span>📅</span>Calendrier</button>
     <button data-tab="reports"><span>📊</span>Rapports</button>
     <button data-tab="settings"><span>⚙️</span>Réglages</button>
   </nav>

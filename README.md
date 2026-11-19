@@ -11,7 +11,7 @@ et par client (Pierre, Gaspard…), avec rapports, graphiques et export CSV pour
 
 | Fichier | Rôle |
 |---|---|
-| `index.html` | Structure des 3 onglets (Timers, Rapports, Réglages) |
+| `index.html` | Structure des 4 onglets (Timers, Calendrier, Rapports, Réglages) |
 | `styles.css` | Styles, mode sombre automatique |
 | `app.js` | Toute la logique (commentée en français) |
 | `manifest.webmanifest`, `sw.js`, `icons/` | PWA : installation et hors ligne |

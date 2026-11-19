@@ -5,7 +5,7 @@
    (la nouvelle version est donc visible à l'ouverture suivante).
    Pense à changer CACHE si tu modifies la liste des fichiers. */
 
-const CACHE = 'timerflo-v3';
+const CACHE = 'timerflo-v4';
 const FILES = [
   './',
   './index.html',

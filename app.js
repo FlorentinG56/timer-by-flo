@@ -77,6 +77,8 @@ const ui = {
   tab: 'timers',
   timersPeriod: 'today',
   r: { period: 'month', from: '', to: '', activity: '', sub: '' },
+  // Calendrier : mois affiché et jour sélectionné ("YYYY-MM-DD")
+  cal: { year: new Date().getFullYear(), month: new Date().getMonth(), day: '' },   // day rempli au démarrage
 };
 
 // =========================================================================
@@ -426,14 +428,15 @@ function matchFilters(s) {
 }
 
 // Sessions de la période (qui touchent la période) + filtres
-function filteredSessions(a, b) {
+// (test = filtre à appliquer ; par défaut ceux de l'écran Rapports)
+function filteredSessions(a, b, test = matchFilters) {
   const now = Date.now();
-  return state.sessions.filter((s) => matchFilters(s) && clip(s, a, b, now) > 0);
+  return state.sessions.filter((s) => test(s) && clip(s, a, b, now) > 0);
 }
 
 // Récapitulatif : [{ act, ms, items: [{ name, internal, color, ms }] }] + total général
-function buildRecap(a, b) {
-  const sessions = filteredSessions(a, b);
+function buildRecap(a, b, test = matchFilters) {
+  const sessions = filteredSessions(a, b, test);
   const now = Date.now();
   const map = new Map();   // actId -> { ms, items: Map(subId|INTERNAL -> ms) }
   for (const s of sessions) {
@@ -492,17 +495,22 @@ function renderReports() {
 
   // --- Résumé ---
   $('#r-total').textContent = fmtDur(total);
+  $('#r-table').innerHTML = summaryRows(groups, total);
+
+  renderCharts(a, b, groups, sessions);
+  renderSessionList(a, b, sessions, '#r-sessions');
+}
+
+// Lignes du tableau « activité → sous-timers » (Rapports et Calendrier)
+function summaryRows(groups, total) {
   const pct = (ms) => total ? Math.round((ms / total) * 100) + ' %' : '';
-  $('#r-table').innerHTML = groups.length ? groups.map((g) => `
+  return groups.length ? groups.map((g) => `
       <tr class="act"><td><span class="dot" style="--c:${g.act.color}"></span> ${esc(g.act.name)}</td>
         <td class="num">${fmtDur(g.ms)}</td><td class="pct">${pct(g.ms)}</td></tr>` +
       g.items.map((it) => `
       <tr class="sub"><td class="${it.internal ? 'internal' : ''}">${esc(it.name)}</td>
         <td class="num">${fmtDur(it.ms)}</td><td class="pct">${pct(it.ms)}</td></tr>`).join('')
     ).join('') : `<tr><td class="hint">Aucun temps sur cette période.</td></tr>`;
-
-  renderCharts(a, b, groups, sessions);
-  renderSessionList(a, b, sessions);
 }
 
 function renderCharts(a, b, groups, sessions) {
@@ -586,14 +594,14 @@ function shade(hex, n) {
 }
 
 // Liste des sessions, groupées par jour (la plus récente en haut)
-function renderSessionList(a, b, sessions) {
+function renderSessionList(a, b, sessions, target, dayHeads = true) {
   const now = Date.now();
   const list = [...sessions].sort((x, y) => y.start - x.start);
-  if (!list.length) { $('#r-sessions').innerHTML = `<p class="hint">Aucune session.</p>`; return; }
+  if (!list.length) { $(target).innerHTML = `<p class="hint">Aucune session.</p>`; return; }
   let lastDay = '';
-  $('#r-sessions').innerHTML = list.map((s) => {
+  $(target).innerHTML = list.map((s) => {
     const day = dayStr(new Date(s.start));
-    const head = day !== lastDay ? `<div class="day-head">${fmtDayLong(s.start)}</div>` : '';
+    const head = dayHeads && day !== lastDay ? `<div class="day-head">${fmtDayLong(s.start)}</div>` : '';
     lastDay = day;
     const full = (s.end ?? now) - s.start;
     const inPeriod = clip(s, a, b, now);
@@ -674,7 +682,8 @@ function parseDuration(str) {
   return Number(m[1]) * 60000;
 }
 
-function manualModal() {
+// date : jour proposé par défaut ("YYYY-MM-DD"), ex. le jour choisi dans le calendrier
+function manualModal(date) {
   if (!state.activities.length) { alert('Crée d’abord une activité.'); return; }
   const actId = ui.r.activity || visibleActivities()[0]?.id || state.activities[0].id;
   const subId = ui.r.activity && ui.r.sub && ui.r.sub !== INTERNAL ? ui.r.sub : '';
@@ -683,7 +692,7 @@ function manualModal() {
   openModal('Ajouter du temps', `
     <label>Activité <select id="m-act">${actOptions(actId)}</select></label>
     <label>Sous-timer <select id="m-sub">${subOptions(actId, subId)}</select></label>
-    <label>Date <input type="date" id="m-date" value="${dayStr(now)}"></label>
+    <label>Date <input type="date" id="m-date" value="${typeof date === 'string' ? date : dayStr(now)}"></label>
     <div class="row2">
       <label>Début <input type="time" id="m-from" value="${pad(Math.max(0, h - 1))}:00"></label>
       <label>Fin <input type="time" id="m-to" value="${pad(h)}:00"></label>
@@ -710,6 +719,76 @@ function manualModal() {
       save(); render();
     } },
   ], linkActSub);
+}
+
+// =========================================================================
+// 7 bis. ÉCRAN CALENDRIER
+// Grille du mois : chaque jour affiche son total et une barre colorée par activité.
+// Toucher un jour affiche le détail : activités, clients, « Interne », sessions.
+// =========================================================================
+
+// Durée courte pour les cases du calendrier : « 35m », « 2h35 », « 2h »
+function fmtShort(ms) {
+  const min = Math.floor(ms / 60000);
+  if (min < 60) return min + 'm';
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h}h${pad(m)}` : `${h}h`;
+}
+
+function renderCalendar() {
+  if (!ui.cal.day) ui.cal.day = dayStr(new Date());
+  const first = new Date(ui.cal.year, ui.cal.month, 1);
+  const label = first.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  $('#cal-title').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+
+  // Grille de 6 semaines max, du lundi au dimanche
+  const start = startOfWeek(first);
+  const next = new Date(ui.cal.year, ui.cal.month + 1, 1);
+  const today = dayStr(new Date());
+  const now = Date.now();
+  let html = '';
+  for (let d = start; d < next || (d.getDay() + 6) % 7 !== 0; d = addDays(d, 1)) {
+    const a = d.getTime(), b = addDays(d, 1).getTime();
+    const key = dayStr(d);
+    const inMonth = d.getMonth() === ui.cal.month;
+    // Temps par activité ce jour-là (pour la barre colorée)
+    const perAct = {};
+    let total = 0;
+    if (inMonth) {
+      for (const s of state.sessions) {
+        const ms = clip(s, a, b, now);
+        if (ms) { perAct[s.activityId] = (perAct[s.activityId] || 0) + ms; total += ms; }
+      }
+    }
+    const bar = total ? Object.entries(perAct).map(([id, ms]) =>
+      `<i style="flex:${ms};background:${actById(id)?.color || '#8e8e93'}"></i>`).join('') : '';
+    html += `
+      <button class="cal-day ${inMonth ? '' : 'out'} ${key === today ? 'today' : ''} ${key === ui.cal.day ? 'sel' : ''}"
+              data-day="${key}" ${inMonth ? '' : 'disabled'}>
+        <span class="n">${d.getDate()}</span>
+        <span class="t">${total ? fmtShort(total) : ''}</span>
+        <span class="bar">${bar}</span>
+      </button>`;
+  }
+  $('#cal-grid').innerHTML = html;
+  renderCalendarDay();
+}
+
+// Détail du jour sélectionné
+function renderCalendarDay() {
+  const a = parseDay(ui.cal.day).getTime(), b = addDays(parseDay(ui.cal.day), 1).getTime();
+  const title = fmtDayLong(a);
+  $('#cal-day-title').textContent = title.charAt(0).toUpperCase() + title.slice(1);
+  const { groups, total, sessions } = buildRecap(a, b, () => true);
+  $('#cal-total').textContent = fmtDur(total);
+  $('#cal-table').innerHTML = summaryRows(groups, total).replace('Aucun temps sur cette période.', 'Aucun temps ce jour-là.');
+  renderSessionList(a, b, sessions, '#cal-sessions', false);
+}
+
+function calGoto(year, month) {
+  const d = new Date(year, month, 1);
+  ui.cal.year = d.getFullYear(); ui.cal.month = d.getMonth();
+  renderCalendar();
 }
 
 // =========================================================================
@@ -930,6 +1009,7 @@ function render() {
   $$('.tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
   $$('.tab').forEach((t) => { t.hidden = t.id !== 'tab-' + ui.tab; });
   if (ui.tab === 'timers') renderTimers();
+  if (ui.tab === 'calendar') renderCalendar();
   if (ui.tab === 'reports') renderReports();
   if (ui.tab === 'settings') renderSettings();
 }
@@ -962,6 +1042,26 @@ $('#banner-note').addEventListener('input', (e) => {
   if (cur) { cur.note = e.target.value; save(); }
 });
 $('#banner-note').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+
+// Écran Calendrier
+$('#cal-prev').addEventListener('click', () => calGoto(ui.cal.year, ui.cal.month - 1));
+$('#cal-next').addEventListener('click', () => calGoto(ui.cal.year, ui.cal.month + 1));
+$('#cal-today').addEventListener('click', () => {
+  ui.cal.day = dayStr(new Date());
+  calGoto(new Date().getFullYear(), new Date().getMonth());
+});
+$('#cal-grid').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-day]');
+  if (!b) return;
+  ui.cal.day = b.dataset.day;
+  $$('#cal-grid .cal-day').forEach((x) => x.classList.toggle('sel', x === b));
+  renderCalendarDay();
+});
+$('#cal-sessions').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sid]');
+  if (b) editSessionModal(b.dataset.sid);
+});
+$('#cal-add').addEventListener('click', () => manualModal(ui.cal.day));
 
 // Écran Rapports
 $('#f-period').addEventListener('change', (e) => {
@@ -1007,7 +1107,12 @@ $('#s-import-file').addEventListener('change', (e) => {
 });
 
 // Rafraîchissement : chaque seconde pour les temps, et au retour dans l'app
-setInterval(updateLive, 1000);
+setInterval(() => {
+  updateLive();
+  // Calendrier ouvert sur le jour où un timer tourne : on rafraîchit le détail
+  const cur = activeSession();
+  if (ui.tab === 'calendar' && cur && !dlg.open && ui.cal.day === dayStr(new Date())) renderCalendarDay();
+}, 1000);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') { state = load(); render(); }
 });
