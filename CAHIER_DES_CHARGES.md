@@ -93,7 +93,7 @@ verrouillé.
 - Épuré, mobile first, gros boutons faciles à toucher, lisible d'un coup d'œil.
 - Mode sombre automatique selon le système.
 - Navigation par onglets en bas : **Timers** | **Rapports** | **Réglages**.
-- Langue : français. Durées affichées en « 2 h 35 » et en hh:mm:ss pour le timer en direct.
+- Langue : français. Durées affichées en hh:mm:ss, précédées des jours quand il y en a (« 1 j 02:35:12 »).
 
 ## 7. Hors périmètre V1
 - Comptes, multi-utilisateurs, synchronisation cloud.

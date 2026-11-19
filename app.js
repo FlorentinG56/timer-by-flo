@@ -168,18 +168,14 @@ function computeTotals(a, b) {
 }
 
 // ---------- Formats d'affichage ----------
-// hh:mm:ss (timer en direct)
+// Durée affichée partout dans l'app : « 02:35:12 », et « 1 j 02:35:12 » dès qu'on dépasse 24 h
 function fmtHMS(ms) {
-  const sec = Math.floor(ms / 1000);
-  return `${pad(Math.floor(sec / 3600))}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`;
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(sec / 86400);
+  const hms = `${pad(Math.floor(sec / 3600) % 24)}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`;
+  return d ? `${d} j ${hms}` : hms;
 }
-// « 2 h 35 », « 2 h », « 35 min »
-function fmtDur(ms) {
-  const min = Math.floor(ms / 60000);
-  const h = Math.floor(min / 60), m = min % 60;
-  if (h === 0) return `${m} min`;
-  return m ? `${h} h ${pad(m)}` : `${h} h`;
-}
+const fmtDur = fmtHMS;
 // hh:mm pour les exports (minutes arrondies)
 function fmtHM(ms) {
   const min = Math.round(ms / 60000);
@@ -327,8 +323,9 @@ function updateLive() {
     if (kind === 'act') { ms = t.act[id] || 0; live = cur && cur.activityId === id; }
     if (kind === 'sub') { ms = t.sub[id] || 0; live = cur && cur.subId === id; }
     if (kind === 'int') { ms = t.int[id] || 0; live = cur && cur.activityId === id && !cur.subId; }
-    // Le timer en cours (et le total de son activité) défile en hh:mm:ss
-    el.textContent = live ? fmtHMS(ms) : fmtDur(ms);
+    // Le timer en cours (et le total de son activité) est mis en évidence par la couleur
+    el.textContent = fmtHMS(ms);
+    el.classList.toggle('live', !!live);
   });
 }
 

@@ -59,4 +59,5 @@ Attention : supprimer l'app de l'écran d'accueil efface ses données.
 - Un seul timer actif : en lancer un arrête le précédent.
 - Les sessions à cheval sur minuit ou sur une limite de période sont découpées au prorata.
 - Les sessions de moins de 3 secondes sans note (tap accidentel) sont ignorées.
+- Affichage des durées : `hh:mm:ss`, avec les jours si besoin (`1 j 02:35:12`). Les CSV gardent heures décimales et hh:mm pour la facturation.
 - Export CSV : séparateur `;`, UTF-8 avec BOM, décimales à virgule (Excel FR).
